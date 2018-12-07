@@ -5,5 +5,5 @@ WORKDIR /src/app
 ADD requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 ADD . .
-ENTRYPOINT ['python', 'entrypoint.sh']
+ENTRYPOINT ["python", "entrypoint.py"]
 
