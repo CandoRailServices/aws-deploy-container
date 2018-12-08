@@ -6,10 +6,10 @@ def cli():
     pass
 
 @cli.command()
-@click.option('--task-definition-family', required=True)
-@click.option('--ecs-cluster', required=True)
-@click.option('--ecr-repository-uri', required=True)
-@click.option('--ecs-service-name', required=True)
+@click.option('--task-definition-family', required=True, envvar='TASK_DEFINITION_FAMILY')
+@click.option('--ecs-cluster', required=True, envvar='ECS_CLUSTER')
+@click.option('--ecr-repository-uri', required=True, envvar='ECR_REPOSITORY_URI')
+@click.option('--ecs-service-name', required=True, envvar='ECS_SERVICE_NAME')
 @click.option('--ci-commit-id', required=True, envvar='CI_COMMIT_ID')
 @click.option('--ci-message', default='', envvar='CI_COMMIT_MESSAGE')
 @click.option('--ci-branch', default='', envvar='CI_BRANCH')
@@ -99,6 +99,6 @@ def update_service(client,task_definition, cluster, service):
     response = client.update_service(cluster=cluster, service=service, taskDefinition=task_definition)
 
 if __name__ == '__main__':
-    cli(auto_envvar_prefix="DEPLOY")
+    cli()
 
 
