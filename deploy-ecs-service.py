@@ -7,7 +7,6 @@ def cli():
 
 @cli.command()
 @click.option('--task-definition-family', required=True)
-@click.option('--aws-region', required=True)
 @click.option('--ecs-cluster', required=True)
 @click.option('--ecr-repository-uri', required=True)
 @click.option('--ecs-service-name', required=True)
@@ -21,7 +20,6 @@ def cli():
 @click.option('--ci-committer-name', default='', envvar='CI_COMMITTER_NAME')
 
 def deploy(task_definition_family,
-        aws_region,
         ecs_cluster,
         ecr_repository_uri,
         ecs_service_name,
@@ -34,7 +32,7 @@ def deploy(task_definition_family,
         ci_committer_username,
         ci_committer_name):
     session = boto3.session.Session()
-    client = session.client('ecs', region_name='us-west-2')
+    client = session.client('ecs')
     task_definition = register_task_definition(
         client,
         task_definition_family,
