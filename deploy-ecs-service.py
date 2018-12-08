@@ -7,14 +7,14 @@ import boto3
 @click.option('--ecs-cluster', required=True)
 @click.option('--ecr-repository-uri', required=True)
 @click.option('--ecs-service-name', required=True)
-@click.option('--ci-commit-id', required=True)
-@click.option('--ci-message', default='')
-@click.option('--ci-branch', default='')
-@click.option('--ci-build-number', default='')
+@click.option('--ci-commit-id', required=True, envvar='CI_COMMIT_ID')
+@click.option('--ci-message', default='', envvar='CI_COMMIT_MESSAGE')
+@click.option('--ci-branch', default='', envvar='CI_BRANCH')
+@click.option('--ci-build-number', default='', envvar='CI_BUILD_ID')
 @click.option('--ci-build-url', default='')
-@click.option('--ci-committer-email', default='')
-@click.option('--ci-committer-username', default='')
-@click.option('--ci-committer-name', default='')
+@click.option('--ci-committer-email', default='', envvar='CI_COMMITTER_EMAIL')
+@click.option('--ci-committer-username', default='', envvar='CI_COMMITTER_USERNAME')
+@click.option('--ci-committer-name', default='', envvar='CI_COMMITTER_NAME')
 
 def main(task_definition_family,
         aws_region,
@@ -98,6 +98,6 @@ def update_service(client,task_definition, cluster, service):
     response = client.update_service(cluster=cluster, service=service, taskDefinition=task_definition)
 
 if __name__ == '__main__':
-    main()
+    main(auto_envvar_prefix="DEPLOY")
 
 
