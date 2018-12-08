@@ -1,7 +1,11 @@
 import click
 import boto3
 
-@click.command()
+@click.group()
+def cli():
+    pass
+
+@cli.command()
 @click.option('--task-definition-family', required=True)
 @click.option('--aws-region', required=True)
 @click.option('--ecs-cluster', required=True)
@@ -16,9 +20,8 @@ import boto3
 @click.option('--ci-committer-username', default='', envvar='CI_COMMITTER_USERNAME')
 @click.option('--ci-committer-name', default='', envvar='CI_COMMITTER_NAME')
 
-def main(task_definition_family,
+def deploy(task_definition_family,
         aws_region,
-        aws_profile,
         ecs_cluster,
         ecr_repository_uri,
         ecs_service_name,
@@ -30,7 +33,7 @@ def main(task_definition_family,
         ci_committer_email,
         ci_committer_username,
         ci_committer_name):
-    session = boto3.session.Session(profile_name='quasar-prod')
+    session = boto3.session.Session()
     client = session.client('ecs', region_name='us-west-2')
     task_definition = register_task_definition(
         client,
@@ -98,6 +101,6 @@ def update_service(client,task_definition, cluster, service):
     response = client.update_service(cluster=cluster, service=service, taskDefinition=task_definition)
 
 if __name__ == '__main__':
-    main(auto_envvar_prefix="DEPLOY")
+    cli(auto_envvar_prefix="DEPLOY")
 
 
