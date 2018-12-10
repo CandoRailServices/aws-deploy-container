@@ -1,5 +1,13 @@
 import click
 import boto3
+import os
+
+print('Environment variables set: ')
+for a in os.environ:
+    if 'SECRET' in a:
+        print(a, ': <redacted>')
+    else:
+        print(a, ': ', os.getenv(a))
 
 @click.group()
 def cli():
@@ -14,7 +22,6 @@ def cli():
 @click.option('--ci-message', default='', envvar='CI_COMMIT_MESSAGE')
 @click.option('--ci-branch', default='', envvar='CI_BRANCH')
 @click.option('--ci-build-number', default='', envvar='CI_BUILD_ID')
-@click.option('--ci-build-url', default='')
 @click.option('--ci-committer-email', default='', envvar='CI_COMMITTER_EMAIL')
 @click.option('--ci-committer-username', default='', envvar='CI_COMMITTER_USERNAME')
 @click.option('--ci-committer-name', default='', envvar='CI_COMMITTER_NAME')
@@ -27,7 +34,6 @@ def deploy(task_definition_family,
         ci_message,
         ci_branch,
         ci_build_number,
-        ci_build_url,
         ci_committer_email,
         ci_committer_username,
         ci_committer_name):
@@ -41,7 +47,6 @@ def deploy(task_definition_family,
         ci_message,
         ci_branch,
         ci_build_number,
-        ci_build_url,
         ci_committer_email,
         ci_committer_name,
         ci_committer_username)
@@ -62,7 +67,6 @@ def register_task_definition(client,
                              CI_MESSAGE,
                              CI_BRANCH,
                              CI_BUILD_NUMBER,
-                             CI_BUILD_URL,
                              CI_COMMITTER_EMAIL,
                              CI_COMMITTER_NAME,
                              CI_COMMITTER_USERNAME):
@@ -84,7 +88,6 @@ def register_task_definition(client,
         'CI_MESSAGE': CI_MESSAGE,
         'CI_BRANCH': CI_BRANCH,
         'CI_BUILD_NUMBER': CI_BUILD_NUMBER,
-        'CI_BUILD_URL': CI_BUILD_URL,
         'CI_COMMITTER_EMAIL': CI_COMMITTER_EMAIL,
         'CI_COMMITTER_NAME': CI_COMMITTER_NAME,
         'CI_COMMITTER_USERNAME': CI_COMMITTER_USERNAME}
