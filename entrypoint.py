@@ -1,25 +1,25 @@
 import click
 import boto3
 
-@click.command()
-@click.option('--task-definition-family', required=True)
-@click.option('--aws-region', required=True)
-@click.option('--aws-profile', required=True)
-@click.option('--ecs-cluster', required=True)
-@click.option('--ecr-repository-uri', required=True)
-@click.option('--ecs-service-name', required=True)
-@click.option('--ci-commit-id', required=True)
-@click.option('--ci-message', default='')
-@click.option('--ci-branch', default='')
-@click.option('--ci-build-number', default='')
-@click.option('--ci-build-url', default='')
-@click.option('--ci-committer-email', default='')
-@click.option('--ci-committer-username', default='')
-@click.option('--ci-committer-name', default='')
+@click.group()
+def cli():
+    pass
 
-def main(task_definition_family,
-        aws_region,
-        aws_profile,
+@cli.command()
+@click.option('--task-definition-family', required=True, envvar='TASK_DEFINITION_FAMILY')
+@click.option('--ecs-cluster', required=True, envvar='ECS_CLUSTER')
+@click.option('--ecr-repository-uri', required=True, envvar='ECR_REPOSITORY_URI')
+@click.option('--ecs-service-name', required=True, envvar='ECS_SERVICE_NAME')
+@click.option('--ci-commit-id', required=True, envvar='CI_COMMIT_ID')
+@click.option('--ci-message', default='', envvar='CI_COMMIT_MESSAGE')
+@click.option('--ci-branch', default='', envvar='CI_BRANCH')
+@click.option('--ci-build-number', default='', envvar='CI_BUILD_ID')
+@click.option('--ci-build-url', default='')
+@click.option('--ci-committer-email', default='', envvar='CI_COMMITTER_EMAIL')
+@click.option('--ci-committer-username', default='', envvar='CI_COMMITTER_USERNAME')
+@click.option('--ci-committer-name', default='', envvar='CI_COMMITTER_NAME')
+
+def deploy(task_definition_family,
         ecs_cluster,
         ecr_repository_uri,
         ecs_service_name,
@@ -31,8 +31,8 @@ def main(task_definition_family,
         ci_committer_email,
         ci_committer_username,
         ci_committer_name):
-    session = boto3.session.Session(profile_name='quasar-prod')
-    client = session.client('ecs', region_name='us-west-2')
+    session = boto3.session.Session()
+    client = session.client('ecs')
     task_definition = register_task_definition(
         client,
         task_definition_family,
@@ -99,6 +99,6 @@ def update_service(client,task_definition, cluster, service):
     response = client.update_service(cluster=cluster, service=service, taskDefinition=task_definition)
 
 if __name__ == '__main__':
-    main()
+    cli()
 
 
