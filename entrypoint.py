@@ -40,7 +40,7 @@ class CIBuildMetadata(object):
         self.committer_email = ci_committer_email
         self.committer_username = ci_committer_username
         self.committer_name = ci_committer_name
-    
+
     def to_tags(self):
         tags = {
             'CI_COMMIT_ID': self.commit_id,
@@ -70,7 +70,7 @@ def deploy(ctx, **kwargs):
 @click.option('--ecr-repository-uri', required=True, envvar='ECR_REPOSITORY_URI')
 @click.option('--ecs-service-name', required=True, envvar='ECS_SERVICE_NAME')
 @click.pass_obj
-def ecs(build, 
+def ecs(build,
         task_definition_family,
         ecs_cluster,
         ecr_repository_uri,
@@ -88,7 +88,7 @@ def ecs(build,
 
 @deploy.command()
 @click.option('--s3-bucket', required=True, envvar='S3_BUCKET')
-@click.option('--source-dir', required=True, default='/tmp/dist/', envvar='SOURCE_DIR', type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True))
+@click.option('--source-dir', required=True, default='/tmp/artifacts/', envvar='SOURCE_DIR', type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True))
 @click.option('--cloudfront-distribution-id', envvar='CLOUDFRONT_DISTRIBUTION_ID')
 @click.option('--s3-prefix', default='', envvar='S3_PREFIX')
 @click.pass_obj
@@ -122,17 +122,20 @@ def s3(build, s3_bucket, source_dir, cloudfront_distribution_id, s3_prefix):
             print ("Uploading %s ..." % (s3_path))
             client.upload_file(local_path, s3_bucket, s3_path, ExtraArgs={'ContentType': content_type})
             client.put_object_tagging(Bucket=s3_bucket, Key=s3_path, Tagging={'TagSet': build.to_tags()})
-    
+
     if cloudfront_distribution_id:
-        num_objects_to_invalidate = len(overwritten_files)
+        paths_to_invalidate = ['/' + key for key in overwritten_files] # Paths must be prefixed with root `/`
+        num_objects_to_invalidate = paths_to_invalidate
         invalidation_caller_reference = datetime.utcnow().isoformat()
         print('Invalidating %s objects in CloudFront distribution %s with caller reference %s' %(num_objects_to_invalidate, cloudfront_distribution_id, invalidation_caller_reference))
+        print('Invalidating paths:')
+        print(paths_to_invalidate)
         cloudfront_client = session.client('cloudfront')
         cloudfront_client.create_invalidation(DistributionId=cloudfront_distribution_id,
             InvalidationBatch = {
                 'Paths': {
                     'Quantity': len(overwritten_files),
-                    'Items': ['/' + key for key in overwritten_files] # Paths must be prefixed with root `/`
+                    'Items':  paths_to_invalidate
                 },
                 'CallerReference': invalidation_caller_reference
             })
