@@ -1,9 +1,14 @@
+"""
+Provides various command-line utilities for depolying to AWS
+"""
+
 import click
 import boto3
 import os
+import mimetypes
+from datetime import datetime
 
 ci_branch = os.environ.get('CI_BRANCH')
-
 
 def get_envvars_for_current_branch():
     for a in os.environ:
@@ -34,6 +39,18 @@ class CIBuildMetadata(object):
         self.build_number = ci_build_number
         self.committer_email = ci_committer_email
         self.committer_username = ci_committer_username
+        self.committer_name = ci_committer_name
+    
+    def to_tags(self):
+        tags = {
+            'CI_COMMIT_ID': self.commit_id,
+            'CI_MESSAGE': self.message,
+            'CI_BRANCH': self.branch,
+            'CI_BUILD_NUMBER': self.build_number,
+            'CI_COMMITTER_EMAIL': self.committer_email,
+            'CI_COMMITTER_NAME': self.committer_name,
+            'CI_COMMITTER_USERNAME': self.committer_username}
+        return unpack_dict(tags)
 
 @cli.group()
 @click.option('--ci-commit-id', required=True, envvar='CI_COMMIT_ID')
@@ -69,10 +86,63 @@ def ecs(build,
 
     update_ecs_service(client,task_definition,ecs_cluster, ecs_service_name)
 
+@deploy.command()
+@click.option('--s3-bucket', required=True, envvar='S3_BUCKET')
+@click.option('--source-dir', required=True, envvar='SOURCE_DIR', type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True))
+@click.option('--cloudfront-distribution-id', envvar='CLOUDFRONT_DISTRIBUTION_ID')
+@click.option('--s3-prefix', default='', envvar='S3_PREFIX')
+@click.pass_obj
+def s3(build, s3_bucket, source_dir, cloudfront_distribution_id, s3_prefix):
+    """Uploads a local directory to S3 and optionally invalidates CloudFront objects"""
+    session = boto3.Session()
+    client = session.client('s3')
+
+    # Keep track of overwritten files to invalidate in CloudFront
+    overwritten_files = []
+
+    for root, dirs, files in os.walk(source_dir):
+        for filename in files:
+
+            # construct the full local path
+            local_path = os.path.join(root, filename)
+
+            # construct the full Dropbox path
+            relative_path = os.path.relpath(local_path, source_dir)
+            s3_path = os.path.join(s3_prefix, relative_path)
+
+            # Keep track if we are overwriting an existing file
+            try:
+                client.head_object(Bucket=s3_bucket, Key=s3_path)
+                overwritten_files.append(s3_path)
+                print('File %s will be overwritten ' % s3_path)
+            except:
+                pass
+
+            content_type, content_encoding = mimetypes.guess_type(local_path)
+            print ("Uploading %s ..." % (s3_path))
+            client.upload_file(local_path, s3_bucket, s3_path, ExtraArgs={'ContentType': content_type})
+            client.put_object_tagging(Bucket=s3_bucket, Key=s3_path, Tagging={'TagSet': build.to_tags()})
+    
+    if cloudfront_distribution_id:
+        num_objects_to_invalidate = len(overwritten_files)
+        invalidation_caller_reference = datetime.utcnow().isoformat()
+        print('Invalidating %s objects in CloudFront distribution %s with caller reference %s' %(num_objects_to_invalidate, cloudfront_distribution_id, invalidation_caller_reference))
+        cloudfront_client = session.client('cloudfront')
+        cloudfront_client.create_invalidation(DistributionId=cloudfront_distribution_id,
+            InvalidationBatch = {
+                'Paths': {
+                    'Quantity': len(overwritten_files),
+                    'Items': ['/' + key for key in overwritten_files] # Paths must be prefixed with root `/`
+                },
+                'CallerReference': invalidation_caller_reference
+            })
+
+
 def unpack_dict(dict_to_unpack):
+    """Takes a dictionary and returns an array of 'key', 'value' dicts"""
     unpacked_dict = []
     for k,v in dict_to_unpack.items():
-        unpacked_dict.append({'key': k, 'value': v})
+        unpacked_dict.append({'Key': k, 'Value': v})
     return unpacked_dict
 
 def register_ecs_task_definition(client,
@@ -94,15 +164,7 @@ def register_ecs_task_definition(client,
 
     task_definition['containerDefinitions'][0]['image'] = new_image
 
-    tags = {
-        'CI_COMMIT_ID': build.commit_id,
-        'CI_MESSAGE': build.mesage,
-        'CI_BRANCH': build.branch,
-        'CI_BUILD_NUMBER': build.build_number,
-        'CI_COMMITTER_EMAIL': build.committer_email,
-        'CI_COMMITTER_NAME': build.committer_name,
-        'CI_COMMITTER_USERNAME': build.committer_username}
-    task_definition['tags'] = unpack_dict(tags)
+    task_definition['tags'] = build.to_tags()
 
     response = client.register_task_definition(**task_definition)
     new_task_revision = response['taskDefinition']['revision']
@@ -117,5 +179,6 @@ if __name__ == '__main__':
     get_envvars_for_current_branch()
     print_envvars()
     cli()
+
 
 
