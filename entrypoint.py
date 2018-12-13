@@ -88,7 +88,7 @@ def ecs(build,
 
 @deploy.command()
 @click.option('--s3-bucket', required=True, envvar='S3_BUCKET')
-@click.option('--source-dir', required=True, envvar='SOURCE_DIR', type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True))
+@click.option('--source-dir', required=True, default='/tmp/dist/', envvar='SOURCE_DIR', type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True))
 @click.option('--cloudfront-distribution-id', envvar='CLOUDFRONT_DISTRIBUTION_ID')
 @click.option('--s3-prefix', default='', envvar='S3_PREFIX')
 @click.pass_obj
@@ -138,7 +138,7 @@ def s3(build, s3_bucket, source_dir, cloudfront_distribution_id, s3_prefix):
             })
 
 @deploy.command()
-@deploy.option('--function-name', required=True, multiple=True) # Possible to deploy to multiple lambdas simultaneously
+@click.option('--function-name', required=True, multiple=True) # Possible to deploy to multiple lambdas simultaneously
 @click.pass_obj
 def lambda_func(build, function_name, path_to_zip):
     raise NotImplementedError('Deploying lambdas not yet implemented')
