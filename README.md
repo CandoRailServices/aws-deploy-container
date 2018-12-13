@@ -85,7 +85,7 @@ awsdeployhelper:
     - app
 ```
 
-`codeship-steps.yaml`
+`codeship-steps.yaml`:
 ```
 - name: COPY_STATIC_SITE_FILES
   service: app
@@ -94,5 +94,5 @@ awsdeployhelper:
 - name: AWS_DEPLOY_TO_S3
   service: awsdeployhelper
   tag: ^(preprod)
-  command: deploy s3 --s3-bucket=codeship_bucket --source-dir=/tmp/dist/ --cloudfront-distribution-id=EBW2674UOE
+  command: deploy s3 --s3-bucket=bucket-name --source-dir=/tmp/dist/ --cloudfront-distribution-id=EBW2674UOE
 ```
