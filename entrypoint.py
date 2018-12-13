@@ -137,6 +137,12 @@ def s3(build, s3_bucket, source_dir, cloudfront_distribution_id, s3_prefix):
                 'CallerReference': invalidation_caller_reference
             })
 
+@deploy.command()
+@deploy.option('--function-name', required=True, multiple=True) # Possible to deploy to multiple lambdas simultaneously
+@click.pass_obj
+def lambda_func(build, function_name, path_to_zip):
+    raise NotImplementedError('Deploying lambdas not yet implemented')
+
 
 def unpack_dict(dict_to_unpack):
     """Takes a dictionary and returns an array of 'key', 'value' dicts"""
