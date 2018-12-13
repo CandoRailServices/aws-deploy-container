@@ -120,7 +120,7 @@ def s3(build, s3_bucket, source_dir, cloudfront_distribution_id, s3_prefix):
 
             content_type, content_encoding = mimetypes.guess_type(local_path)
             print ("Uploading %s ..." % (s3_path))
-            client.upload_file(local_path, s3_bucket, s3_path, ExtraArgs={'ContentType': content_type})
+            client.upload_file(local_path, s3_bucket, s3_path, ExtraArgs={'ContentType': content_type} if content_type else None)
             client.put_object_tagging(Bucket=s3_bucket, Key=s3_path, Tagging={'TagSet': build.to_tags()})
 
     if cloudfront_distribution_id:
