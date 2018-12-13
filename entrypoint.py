@@ -88,7 +88,7 @@ def ecs(build,
 
 @deploy.command()
 @click.option('--s3-bucket', required=True, envvar='S3_BUCKET')
-@click.option('--source-dir', required=True, default='/tmp/artifacts/', envvar='SOURCE_DIR', type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True))
+@click.option('--source-dir', required=True, default='/artifacts/', envvar='SOURCE_DIR', type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True))
 @click.option('--cloudfront-distribution-id', envvar='CLOUDFRONT_DISTRIBUTION_ID')
 @click.option('--s3-prefix', default='', envvar='S3_PREFIX')
 @click.pass_obj
