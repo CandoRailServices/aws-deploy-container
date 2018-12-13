@@ -3,6 +3,8 @@
 This repository contains the source for a container image that will deploy ECS
 services to AWS from a CodeShip pipeline.
 
+The built Docker image can be found [here](https://hub.docker.com/r/seandunn/aws-deploy-container/)
+
 # Usage
 To deploy a new ECS service:
 ```
@@ -92,5 +94,5 @@ awsdeployhelper:
 - name: AWS_DEPLOY_TO_S3
   service: awsdeployhelper
   tag: ^(preprod)
-  command: deploy s3 --s3-bucket=quasar-dev-dashboard-static-content --source-dir=/tmp/dist/ --cloudfront-distribution-id=E2WJXC3GA0CRD5
+  command: deploy s3 --s3-bucket=codeship_bucket --source-dir=/tmp/dist/ --cloudfront-distribution-id=EBW2674UOE
 ```
