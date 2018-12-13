@@ -1,6 +1,6 @@
 FROM python:3.6
 RUN pip install boto3
-RUN mkdir -p /src/app
+RUN mkdir -p /artifacts
 WORKDIR /src/app
 ADD requirements.txt requirements.txt
 RUN pip install -r requirements.txt
