@@ -125,7 +125,7 @@ def s3(build, s3_bucket, source_dir, cloudfront_distribution_id, s3_prefix):
 
     if cloudfront_distribution_id:
         paths_to_invalidate = ['/' + key for key in overwritten_files] # Paths must be prefixed with root `/`
-        num_objects_to_invalidate = paths_to_invalidate
+        num_objects_to_invalidate = len(paths_to_invalidate)
         invalidation_caller_reference = datetime.utcnow().isoformat()
         print('Invalidating %s objects in CloudFront distribution %s with caller reference %s' %(num_objects_to_invalidate, cloudfront_distribution_id, invalidation_caller_reference))
         print('Invalidating paths:')
