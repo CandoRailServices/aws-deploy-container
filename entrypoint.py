@@ -45,7 +45,6 @@ class CIBuildMetadata(object):
     def to_tags(self):
         tags = {
             'CI_COMMIT_ID': self.commit_id,
-            'CI_MESSAGE': self.message,
             'CI_BRANCH': self.branch,
             'CI_BUILD_NUMBER': self.build_number,
             'CI_COMMITTER_EMAIL': self.committer_email,
