@@ -70,29 +70,41 @@ For Codeship
 app:
   build:
     dockerfile_path: Dockerfile
+  cached: true
+  volumes:
+    - ./artifacts:/artifacts
+
+awsdeployhelper:
+  image: seandunn/aws-deploy-container:latest
+  env_file: aws-deployment.env
   encrypted_env_file: deployment-creds.env.encrypted
   cached: true
   volumes:
-    - /tmp/artifacts
-
-awsdeployhelper:
-  image: seandunn/aws-deploy-container:dev
-  encrypted_env_file: deployment-creds.env.encrypted
-  cached: true
-  environment:
-    - AWS_DEFAULT_REGION=us-west-2
-  volumes_from:
-    - app
+    - ./artifacts:/artifacts
 ```
 
 `codeship-steps.yaml`:
 ```
 - name: COPY_STATIC_SITE_FILES
   service: app
-  command: cp -r -v /home/circleci/dist/. /tmp/artifacts/
+  command: cp -r -v /src/dist/. /artifacts/
 
 - name: AWS_DEPLOY_TO_S3
   service: awsdeployhelper
-  tag: ^(preprod)
-  command: deploy s3 --s3-bucket=bucket-name --source-dir=/tmp/dist/ --cloudfront-distribution-id=EBW2674UOE
+  tag: ^(dev|prod)
+  command: deploy s3 --source-dir=/artifacts
 ```
+
+`aws-deployment.env`
+```
+AWS_DEFAULT_REGION=us-west-2
+
+# dev
+dev_S3_BUCKET=dev-bucket-name
+dev_CLOUDFRONT_DISTRIBUTION_ID=dev-cf-dist-id
+
+# prod
+prod_S3_BUCKET=prod-bucket-name
+prod_CLOUDFRONT_DISTRIBUTION_ID=prod-cf-dist-id
+```
+
