@@ -8,18 +8,15 @@ import os
 import mimetypes
 from datetime import datetime
 
-# use the `ENVVAR_PREFIX` environment variable to resolve envvars, or else default to `CI_BRANCH`
-ci_branch = os.environ.get('CI_BRANCH')
-envvar_prefix = os.environ.get('ENVVAR_PREFIX')
-envvar_prefix = envvar_prefix if envvar_prefix else ci_branch
 
-def get_envvars_for_current_branch():
-    for a in os.environ:
+def resolve_envvars(envvar_prefix):
+    """Strips the specified prefix from all envvars that match as a method to parameterize the envvars for different configs"""
+    for key in os.environ:
         # Any environment variables that start with the branch name, strip of the branch name
         # this provides a parameterization of envvars based on the CI_BRANCH
-        if ci_branch and a.upper().replace('-','_').startswith(ci_branch.upper().replace('-','_')):
-            stripped_envvar_key = a[len(ci_branch)+1:]
-            os.environ[stripped_envvar_key] = os.getenv(a)
+        if key.upper().replace('-','_').startswith(envvar_prefix.upper().replace('-','_')):
+            stripped_envvar_key = a[len(envvar_prefix)+1:]
+            os.environ[stripped_envvar_key] = os.getenv(key)
 
 def print_envvars():
     print('Environment variables set: ')
@@ -31,8 +28,9 @@ def print_envvars():
 
 
 @click.group()
-def cli():
-    pass
+@click.option('--envvar-prefix', envvar='ENVVAR_PREFIX', default=os.environ.get('CI_BRANCH'))
+def cli(envvar_prefix):
+    resolve_envvars(envvar_prefix)
 
 class CIBuildMetadata(object):
     def __init__(self, ci_commit_id, ci_message, ci_branch, ci_build_number, ci_committer_email, ci_committer_username, ci_committer_name):
@@ -189,7 +187,6 @@ def update_ecs_service(client,task_definition, cluster, service):
     response = client.update_service(cluster=cluster, service=service, taskDefinition=task_definition)
 
 if __name__ == '__main__':
-    get_envvars_for_current_branch()
     print_envvars()
     cli()
 
