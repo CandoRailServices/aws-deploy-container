@@ -8,7 +8,10 @@ import os
 import mimetypes
 from datetime import datetime
 
+# use the `ENVVAR_PREFIX` environment variable to resolve envvars, or else default to `CI_BRANCH`
 ci_branch = os.environ.get('CI_BRANCH')
+envvar_prefix = os.environ.get('ENVVAR_PREFIX')
+envvar_prefix = envvar_prefix if envvar_prefix else ci_branch
 
 def get_envvars_for_current_branch():
     for a in os.environ:
