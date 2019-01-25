@@ -35,7 +35,7 @@ class CIBuildMetadata(object):
         self.committer_username = ci_committer_username
         self.committer_name = ci_committer_name
 
-    def to_tags(self, lowercase_keys=False):
+    def to_tags(self, lowercase_keys=True):
         tags = {
             'CI_COMMIT_ID': self.commit_id,
             'CI_BRANCH': self.branch,
