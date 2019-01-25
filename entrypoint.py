@@ -195,7 +195,7 @@ def unpack_dict(dict_to_unpack):
     """Takes a dictionary and returns an array of 'key', 'value' dicts"""
     unpacked_dict = []
     for k,v in dict_to_unpack.items():
-        unpacked_dict.append({'Key': k, 'Value': v})
+        unpacked_dict.append({'key': k, 'value': v})
     return unpacked_dict
 
 def register_ecs_task_definition(client,
