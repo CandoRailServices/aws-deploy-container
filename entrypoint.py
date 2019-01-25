@@ -1,5 +1,5 @@
 """
-Provides various command-line utilities for depolying to AWS
+Provides various command-line utilities for deploying to AWS
 """
 
 import click
@@ -226,7 +226,7 @@ def register_ecs_task_definition(client,
 
 def update_ecs_service(client,task_definition, cluster, service):
     """Updates an ECS service with a new task definition. The provided task definition must be name:version"""
-    response = client.update_service(cluster=cluster, service=service, taskDefinition=task_definition)
+    response = client.update_service(cluster=cluster, service=service, taskDefinition=task_definition, forceNewDeployment=True)
 
 # Shortcut to MD5
 # borrowed from https://gist.github.com/nateware/4735384
