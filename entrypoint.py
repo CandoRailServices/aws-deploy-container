@@ -35,7 +35,7 @@ class CIBuildMetadata(object):
         self.committer_username = ci_committer_username
         self.committer_name = ci_committer_name
 
-    def to_tags(self):
+    def to_tags(self, lowercase_keys=False):
         tags = {
             'CI_COMMIT_ID': self.commit_id,
             'CI_BRANCH': self.branch,
@@ -43,7 +43,7 @@ class CIBuildMetadata(object):
             'CI_COMMITTER_EMAIL': self.committer_email,
             'CI_COMMITTER_NAME': self.committer_name,
             'CI_COMMITTER_USERNAME': self.committer_username}
-        return unpack_dict(tags)
+        return unpack_dict(tags, lowercase_keys)
 
 def resolve_envvars(envvar_prefix):
     """Strips the specified prefix from all envvars that match as a method to parameterize the envvars for different configs"""
@@ -147,7 +147,7 @@ def s3(build, s3_bucket, source_dir, cloudfront_distribution_id, s3_prefix):
             content_type, content_encoding = mimetypes.guess_type(local_path)
             print ("Uploading %s ..." % (s3_path))
             client.upload_file(local_path, s3_bucket, s3_path, ExtraArgs={'ContentType': content_type} if content_type else None)
-            client.put_object_tagging(Bucket=s3_bucket, Key=s3_path, Tagging={'TagSet': build.to_tags()})
+            client.put_object_tagging(Bucket=s3_bucket, Key=s3_path, Tagging={'TagSet': build.to_tags(lowercase_keys = True)})
 
     invalidate_cloudfront(cloudfront_distribution_id, overwritten_files, session)
 
@@ -183,7 +183,7 @@ def lambda_func(build, function_name, path_to_zip, s3_bucket, s3_prefix):
 
     s3_key = os.path.join(s3_prefix, os.path.basename(path_to_zip) + '.' + build.commit_id)
     s3_client.upload_file(path_to_zip, s3_bucket, s3_key)
-    s3_client.put_object_tagging(Bucket=s3_bucket, Key=s3_key, Tagging={'TagSet': build.to_tags()})
+    s3_client.put_object_tagging(Bucket=s3_bucket, Key=s3_key, Tagging={'TagSet': build.to_tags(lowercase_keys=True)})
 
     lambda_client = session.client('lambda')
 
@@ -191,11 +191,14 @@ def lambda_func(build, function_name, path_to_zip, s3_bucket, s3_prefix):
     for function in function_name:
         lambda_client.update_function_code(FunctionName=function, S3Bucket=s3_bucket, S3Key=s3_key)
 
-def unpack_dict(dict_to_unpack):
+def unpack_dict(dict_to_unpack, lowercase_keys):
+    # Different AWS APIs use "Key", "Value" or "key", "value"
+    key_string = "key" if lowercase_keys else "Key"
+    value_string = "value" if lowercase_keys else "Value"
     """Takes a dictionary and returns an array of 'key', 'value' dicts"""
     unpacked_dict = []
     for k,v in dict_to_unpack.items():
-        unpacked_dict.append({'key': k, 'value': v})
+        unpacked_dict.append({key_string: k, value_string: v})
     return unpacked_dict
 
 def register_ecs_task_definition(client,
