@@ -10,20 +10,40 @@ from datetime import datetime
 import hashlib
 import datadog
 
-options = {
-    'api_key': os.environ['DD_API_KEY'],
-    'app_key': os.environ['DD_APP_KEY']
-}
+# Initialize DataDog if envvars exist
+dd_api_key = os.environ.get('DD_API_KEY')
+dd_app_key = os.environ.get('DD_APP_KEY')
+dd_initialized = False
 
-datadog.initialize(**options)
+if dd_api_key and dd_app_key:
+    options = {
+        'api_key': dd_api_key,
+        'app_key': dd_app_key
+    }
 
-def post_datadog_event(build_metadata: CIBuildMetadata):
-    title = f'CodeShip: Application deployed to '
-    source_type_name = 'codeship'
-    tags = ['']
-    #datadog.api.Event.create(title=title, alert_type=text=text, tags=tags)
+    datadog.initialize(**options)
+    dd_initialized = True
 
 
+class CIBuildMetadata(object):
+    def __init__(self, ci_commit_id, ci_message, ci_branch, ci_build_number, ci_committer_email, ci_committer_username, ci_committer_name):
+        self.commit_id = ci_commit_id
+        self.message = ci_message
+        self.branch = ci_branch
+        self.build_number = ci_build_number
+        self.committer_email = ci_committer_email
+        self.committer_username = ci_committer_username
+        self.committer_name = ci_committer_name
+
+    def to_tags(self):
+        tags = {
+            'CI_COMMIT_ID': self.commit_id,
+            'CI_BRANCH': self.branch,
+            'CI_BUILD_NUMBER': self.build_number,
+            'CI_COMMITTER_EMAIL': self.committer_email,
+            'CI_COMMITTER_NAME': self.committer_name,
+            'CI_COMMITTER_USERNAME': self.committer_username}
+        return unpack_dict(tags)
 
 def resolve_envvars(envvar_prefix):
     """Strips the specified prefix from all envvars that match as a method to parameterize the envvars for different configs"""
@@ -49,25 +69,6 @@ def cli(envvar_prefix):
     if envvar_prefix:
         resolve_envvars(envvar_prefix)
 
-class CIBuildMetadata(object):
-    def __init__(self, ci_commit_id, ci_message, ci_branch, ci_build_number, ci_committer_email, ci_committer_username, ci_committer_name):
-        self.commit_id = ci_commit_id
-        self.message = ci_message
-        self.branch = ci_branch
-        self.build_number = ci_build_number
-        self.committer_email = ci_committer_email
-        self.committer_username = ci_committer_username
-        self.committer_name = ci_committer_name
-
-    def to_tags(self):
-        tags = {
-            'CI_COMMIT_ID': self.commit_id,
-            'CI_BRANCH': self.branch,
-            'CI_BUILD_NUMBER': self.build_number,
-            'CI_COMMITTER_EMAIL': self.committer_email,
-            'CI_COMMITTER_NAME': self.committer_name,
-            'CI_COMMITTER_USERNAME': self.committer_username}
-        return unpack_dict(tags)
 
 @cli.group()
 @click.option('--ci-commit-id', required=True, envvar='CI_COMMIT_ID')
@@ -238,6 +239,12 @@ def get_md5(filename):
         break
     m.update(data)
   return m.hexdigest()
+
+def post_datadog_event(build_metadata: CIBuildMetadata):
+    title = f'CodeShip: Application deployed to '
+    source_type_name = 'codeship'
+    tags = ['']
+    #datadog.api.Event.create(title=title, alert_type=text=text, tags=tags)
 
 if __name__ == '__main__':
     cli()
