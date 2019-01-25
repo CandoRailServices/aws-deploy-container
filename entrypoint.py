@@ -1,5 +1,5 @@
 """
-Provides various command-line utilities for depolying to AWS
+Provides various command-line utilities for deploying to AWS
 """
 
 import click
@@ -7,30 +7,23 @@ import boto3
 import os
 import mimetypes
 from datetime import datetime
+import hashlib
+import datadog
 
+# Initialize DataDog if envvars exist
+dd_api_key = os.environ.get('DD_API_KEY')
+dd_app_key = os.environ.get('DD_APP_KEY')
+dd_initialized = False
 
-def resolve_envvars(envvar_prefix):
-    """Strips the specified prefix from all envvars that match as a method to parameterize the envvars for different configs"""
-    for key in os.environ:
-        # Any environment variables that start with the branch name, strip of the branch name
-        # this provides a parameterization of envvars based on the CI_BRANCH
-        if key.upper().replace('-','_').startswith(envvar_prefix.upper().replace('-','_')):
-            stripped_envvar_key = key[len(envvar_prefix)+1:]
-            os.environ[stripped_envvar_key] = os.getenv(key)
+if dd_api_key and dd_app_key:
+    options = {
+        'api_key': dd_api_key,
+        'app_key': dd_app_key
+    }
 
-def print_envvars():
-    print('Environment variables set: ')
-    for a in os.environ:
-        if 'SECRET' in a:
-            print(a, ': <redacted>')
-        else:
-            print(a, ': ', os.getenv(a))
+    datadog.initialize(**options)
+    dd_initialized = True
 
-
-@click.group()
-@click.option('--envvar-prefix', envvar='ENVVAR_PREFIX', default=os.environ.get('CI_BRANCH'))
-def cli(envvar_prefix):
-    resolve_envvars(envvar_prefix)
 
 class CIBuildMetadata(object):
     def __init__(self, ci_commit_id, ci_message, ci_branch, ci_build_number, ci_committer_email, ci_committer_username, ci_committer_name):
@@ -51,6 +44,31 @@ class CIBuildMetadata(object):
             'CI_COMMITTER_NAME': self.committer_name,
             'CI_COMMITTER_USERNAME': self.committer_username}
         return unpack_dict(tags)
+
+def resolve_envvars(envvar_prefix):
+    """Strips the specified prefix from all envvars that match as a method to parameterize the envvars for different configs"""
+    for key in os.environ:
+        # Any environment variables that start with the branch name, strip of the branch name
+        # this provides a parameterization of envvars based on the CI_BRANCH
+        if key.upper().replace('-','_').startswith(envvar_prefix.upper().replace('-','_')):
+            stripped_envvar_key = a[len(envvar_prefix)+1:]
+            os.environ[stripped_envvar_key] = os.getenv(key)
+
+def print_envvars():
+    print('Environment variables set: ')
+    for a in os.environ:
+        if 'SECRET' in a:
+            print(a, ': <redacted>')
+        else:
+            print(a, ': ', os.getenv(a))
+
+
+@click.group()
+@click.option('--envvar-prefix', envvar='ENVVAR_PREFIX', default=os.environ.get('CI_BRANCH'))
+def cli(envvar_prefix):
+    if envvar_prefix:
+        resolve_envvars(envvar_prefix)
+
 
 @cli.group()
 @click.option('--ci-commit-id', required=True, envvar='CI_COMMIT_ID')
@@ -112,9 +130,17 @@ def s3(build, s3_bucket, source_dir, cloudfront_distribution_id, s3_prefix):
 
             # Keep track if we are overwriting an existing file
             try:
-                client.head_object(Bucket=s3_bucket, Key=s3_path)
+                object_metadata = client.head_object(Bucket=s3_bucket, Key=s3_path)
+
+                # Compare md5 contents to see if file is identical, and skip if so
+                etag = object_metadata['ETag'][1:-1]
+                file_md5 = get_md5(local_path)
+                if etag == md5:
+                    print ('File %s with identical md5 already exists; skipping' % s3_path)
+                    continue
+
                 overwritten_files.append(s3_path)
-                print('File %s will be overwritten ' % s3_path)
+                print('File %s will be overwritten ' % (s3_path))
             except:
                 pass
 
@@ -123,6 +149,9 @@ def s3(build, s3_bucket, source_dir, cloudfront_distribution_id, s3_prefix):
             client.upload_file(local_path, s3_bucket, s3_path, ExtraArgs={'ContentType': content_type} if content_type else None)
             client.put_object_tagging(Bucket=s3_bucket, Key=s3_path, Tagging={'TagSet': build.to_tags()})
 
+    invalidate_cloudfront(cloudfront_distribution_id, overwritten_files, session)
+
+def invalidate_cloudfront(cloudfront_distribution_id, overwritten_files, session):
     if cloudfront_distribution_id:
         paths_to_invalidate = ['/' + key for key in overwritten_files] # Paths must be prefixed with root `/`
         num_objects_to_invalidate = len(paths_to_invalidate)
@@ -142,17 +171,31 @@ def s3(build, s3_bucket, source_dir, cloudfront_distribution_id, s3_prefix):
             print('No CloudFront objects to invalidate')
 
 @deploy.command()
-@click.option('--function-name', required=True, multiple=True) # Possible to deploy to multiple lambdas simultaneously
+@click.option('--function-name', required=True, multiple=True, envvar='FUNCTION_NAME') # Possible to deploy to multiple lambdas simultaneously
+@click.option('--path-to-zip', required=True, type=click.Path(exists=True, file_okay=True, dir_okay=False, resolve_path=True), envvar='PATH_TO_ZIP', help='The local filepath of the zip file to upload')
+@click.option('--s3-bucket', envvar='S3_BUCKET', help='The path of the S3 bucket to upload the zip file to')
+@click.option('--s3-prefix', envvar='S3_PREFIX', default='')
 @click.pass_obj
-def lambda_func(build, function_name, path_to_zip):
-    raise NotImplementedError('Deploying lambdas not yet implemented')
+def lambda_func(build, function_name, path_to_zip, s3_bucket, s3_prefix):
+    """Uploads a zip package to S3 and updates a lambda function to use the package"""
+    session = boto3.Session(profile_name='quasar-preprod')
+    s3_client = session.client('s3')
 
+    s3_key = os.path.join(s3_prefix, os.path.basename(path_to_zip) + '.' + build.commit_id)
+    s3_client.upload_file(path_to_zip, s3_bucket, s3_key)
+    s3_client.put_object_tagging(Bucket=s3_bucket, Key=s3_key, Tagging={'TagSet': build.to_tags()})
+
+    lambda_client = session.client('lambda')
+
+    # Deploy to each function
+    for function in function_name:
+        lambda_client.update_function_code(FunctionName=function, S3Bucket=s3_bucket, S3Key=s3_key)
 
 def unpack_dict(dict_to_unpack):
     """Takes a dictionary and returns an array of 'key', 'value' dicts"""
     unpacked_dict = []
     for k,v in dict_to_unpack.items():
-        unpacked_dict.append({'Key': k, 'Value': v})
+        unpacked_dict.append({'key': k, 'value': v})
     return unpacked_dict
 
 def register_ecs_task_definition(client,
@@ -183,10 +226,27 @@ def register_ecs_task_definition(client,
 
 def update_ecs_service(client,task_definition, cluster, service):
     """Updates an ECS service with a new task definition. The provided task definition must be name:version"""
-    response = client.update_service(cluster=cluster, service=service, taskDefinition=task_definition)
+    response = client.update_service(cluster=cluster, service=service, taskDefinition=task_definition, forceNewDeployment=True)
+
+# Shortcut to MD5
+# borrowed from https://gist.github.com/nateware/4735384
+def get_md5(filename):
+  f = open(filename, 'rb')
+  m = hashlib.md5()
+  while True:
+    data = f.read(10240)
+    if len(data) == 0:
+        break
+    m.update(data)
+  return m.hexdigest()
+
+def post_datadog_event(build_metadata: CIBuildMetadata):
+    title = f'CodeShip: Application deployed to '
+    source_type_name = 'codeship'
+    tags = ['']
+    #datadog.api.Event.create(title=title, alert_type=text=text, tags=tags)
 
 if __name__ == '__main__':
-    print_envvars()
     cli()
 
 
