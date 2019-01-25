@@ -51,7 +51,7 @@ def resolve_envvars(envvar_prefix):
         # Any environment variables that start with the branch name, strip of the branch name
         # this provides a parameterization of envvars based on the CI_BRANCH
         if key.upper().replace('-','_').startswith(envvar_prefix.upper().replace('-','_')):
-            stripped_envvar_key = a[len(envvar_prefix)+1:]
+            stripped_envvar_key = key[len(envvar_prefix)+1:]
             os.environ[stripped_envvar_key] = os.getenv(key)
 
 def print_envvars():
