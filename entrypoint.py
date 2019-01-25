@@ -147,7 +147,7 @@ def s3(build, s3_bucket, source_dir, cloudfront_distribution_id, s3_prefix):
             content_type, content_encoding = mimetypes.guess_type(local_path)
             print ("Uploading %s ..." % (s3_path))
             client.upload_file(local_path, s3_bucket, s3_path, ExtraArgs={'ContentType': content_type} if content_type else None)
-            client.put_object_tagging(Bucket=s3_bucket, Key=s3_path, Tagging={'TagSet': build.to_tags(lowercase_keys = True)})
+            client.put_object_tagging(Bucket=s3_bucket, Key=s3_path, Tagging={'TagSet': build.to_tags()})
 
     invalidate_cloudfront(cloudfront_distribution_id, overwritten_files, session)
 
@@ -183,7 +183,7 @@ def lambda_func(build, function_name, path_to_zip, s3_bucket, s3_prefix):
 
     s3_key = os.path.join(s3_prefix, os.path.basename(path_to_zip) + '.' + build.commit_id)
     s3_client.upload_file(path_to_zip, s3_bucket, s3_key)
-    s3_client.put_object_tagging(Bucket=s3_bucket, Key=s3_key, Tagging={'TagSet': build.to_tags(lowercase_keys=True)})
+    s3_client.put_object_tagging(Bucket=s3_bucket, Key=s3_key, Tagging={'TagSet': build.to_tags()})
 
     lambda_client = session.client('lambda')
 
@@ -220,7 +220,7 @@ def register_ecs_task_definition(client,
 
     task_definition['containerDefinitions'][0]['image'] = new_image
 
-    task_definition['tags'] = build.to_tags()
+    task_definition['tags'] = build.to_tags(lowercase_keys=False)
 
     response = client.register_task_definition(**task_definition)
     new_task_revision = response['taskDefinition']['revision']
