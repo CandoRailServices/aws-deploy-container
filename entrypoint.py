@@ -35,7 +35,7 @@ class CIBuildMetadata(object):
         self.committer_username = ci_committer_username
         self.committer_name = ci_committer_name
 
-    def to_tags(self, lowercase_keys=True):
+    def to_tags(self, lowercase_keys=False):
         tags = {
             'CI_COMMIT_ID': self.commit_id,
             'CI_BRANCH': self.branch,
@@ -220,7 +220,7 @@ def register_ecs_task_definition(client,
 
     task_definition['containerDefinitions'][0]['image'] = new_image
 
-    task_definition['tags'] = build.to_tags(lowercase_keys=False)
+    task_definition['tags'] = build.to_tags(lowercase_keys=True)
 
     response = client.register_task_definition(**task_definition)
     new_task_revision = response['taskDefinition']['revision']
